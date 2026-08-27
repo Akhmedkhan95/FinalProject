@@ -1,5 +1,13 @@
 plugins {
     id 'java'
+    id 'jacoco'
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 group = 'ru-otus-java-oop1'

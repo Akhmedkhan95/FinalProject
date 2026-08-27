@@ -1,5 +1,11 @@
-import java.io.*;
-import java.net.*;
+package client;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.Scanner;
 
 public class GameClient {
@@ -7,11 +13,10 @@ public class GameClient {
     private static final int SERVER_PORT = 8888;
 
     public static void main(String[] args) {
-
         try {
             System.setOut(new PrintStream(System.out, true, "UTF-8"));
         } catch (Exception e) {
-            System.out.println("Не удалось установить UTF-8, используем простые символы");
+            System.out.println("Не удалось установить UTF-8");
         }
 
         try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
@@ -21,7 +26,6 @@ public class GameClient {
 
             System.out.println("Подключение к серверу...");
 
-            // Поток для чтения сообщений от сервера
             Thread readerThread = new Thread(() -> {
                 try {
                     String serverMessage;
@@ -34,12 +38,22 @@ public class GameClient {
             });
             readerThread.start();
 
-            // Основной цикл для отправки сообщений
+            System.out.println("\nВведите команду (или HELP для списка команд):");
+
             String userInput;
             while ((userInput = scanner.nextLine()) != null) {
-                out.println(userInput);
-            }
+                String trimmed = userInput.trim();
 
+                if (trimmed.equalsIgnoreCase("HELP")) {
+                    System.out.println("\nДоступные команды:");
+                    System.out.println("  JOIN <имя> - присоединиться к игре");
+                    System.out.println("  MOVE <ход> - сделать ход (КАМЕНЬ, НОЖНИЦЫ, БУМАГА)");
+                    System.out.println("  QUIT - выйти из игры");
+                    System.out.println("  HELP - показать эту справку\n");
+                } else {
+                    out.println(trimmed);
+                }
+            }
         } catch (IOException e) {
             System.out.println("Ошибка подключения к серверу: " + e.getMessage());
         }
