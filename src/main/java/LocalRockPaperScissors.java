@@ -8,7 +8,6 @@ import java.util.Scanner;
 
 public class LocalRockPaperScissors {
     private static final Scanner scanner = new Scanner(System.in);
-    private static Game game;
 
     public static void main(String[] args) {
         try {
@@ -18,33 +17,77 @@ public class LocalRockPaperScissors {
         }
 
         System.out.println("=== КАМЕНЬ, НОЖНИЦЫ, БУМАГА ===");
-        setupGame();
-        playGame();
+
+        boolean playAgain = true;
+        while (playAgain) {
+            playAgain = playOneGame();
+        }
+
+        System.out.println("Спасибо за игру! До свидания!");
         scanner.close();
     }
 
-    private static void setupGame() {
-        System.out.print("Введите количество раундов: ");
-        int totalRounds = scanner.nextInt();
-        scanner.nextLine();
+    private static boolean playOneGame() {
+        Game game = setupGame();
+        if (game == null) {
+            return false;
+        }
+
+        playGame(game);
+        return askForReplay();
+    }
+
+    private static Game setupGame() {
+        int totalRounds = getValidRoundsCount();
+        if (totalRounds <= 0) {
+            return null;
+        }
 
         System.out.print("Введите имя первого игрока: ");
         String name1 = scanner.nextLine();
+        while (name1.trim().isEmpty()) {
+            System.out.print("Имя не может быть пустым. Введите имя первого игрока: ");
+            name1 = scanner.nextLine();
+        }
 
         System.out.print("Введите имя второго игрока: ");
         String name2 = scanner.nextLine();
+        while (name2.trim().isEmpty()) {
+            System.out.print("Имя не может быть пустым. Введите имя второго игрока: ");
+            name2 = scanner.nextLine();
+        }
 
-        Player player1 = new Player(name1);
-        Player player2 = new Player(name2);
+        Player player1 = new Player(name1.trim());
+        Player player2 = new Player(name2.trim());
 
-        game = new Game(player1, player2, totalRounds);
+        Game game = new Game(player1, player2, totalRounds);
 
         System.out.println("\nИгра начинается: " + name1 + " vs " + name2);
         System.out.println("Всего раундов: " + totalRounds);
         System.out.println("========================");
+
+        return game;
     }
 
-    private static void playGame() {
+    private static int getValidRoundsCount() {
+        while (true) {
+            System.out.print("Введите количество раундов (1-100): ");
+            String input = scanner.nextLine().trim();
+
+            try {
+                int rounds = Integer.parseInt(input);
+                if (rounds >= 1 && rounds <= 100) {
+                    return rounds;
+                } else {
+                    System.out.println("Количество раундов должно быть от 1 до 100.");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Пожалуйста, введите число.");
+            }
+        }
+    }
+
+    private static void playGame(Game game) {
         while (!game.isGameOver()) {
             int roundNum = game.getCurrentRound() + 1;
             clearConsole();
@@ -58,9 +101,9 @@ public class LocalRockPaperScissors {
             Move move2 = getPlayerChoice(game.getPlayer2().getName());
             game.makeMove(game.getPlayer2(), move2);
 
-            displayChoices(move1, move2);
+            displayChoices(game, move1, move2);
             GameResult result = game.finishCurrentRound();
-            displayRoundResult(result);
+            displayRoundResult(game, result);
 
             if (!game.isGameOver()) {
                 System.out.println("\nНажмите Enter для следующего раунда...");
@@ -68,8 +111,7 @@ public class LocalRockPaperScissors {
             }
         }
 
-        displayFinalResults();
-        askForReplay();
+        displayFinalResults(game);
     }
 
     private static Move getPlayerChoice(String playerName) {
@@ -83,23 +125,25 @@ public class LocalRockPaperScissors {
             String input = scanner.nextLine().trim();
 
             try {
+                // Пробуем распарсить как число
                 int choice = Integer.parseInt(input);
                 if (choice >= 1 && choice <= 3) {
                     return Move.fromNumber(choice);
                 }
             } catch (NumberFormatException e) {
+                // Если не число, пробуем распарсить как слово
                 try {
                     return Move.fromString(input);
                 } catch (IllegalArgumentException ex) {
-                    // Игнорируем
+                    // Игнорируем, чтобы вывести сообщение об ошибке ниже
                 }
             }
 
-            System.out.print("Некорректный ввод. Введите 1, 2 или 3: ");
+            System.out.print("Некорректный ввод. Введите 1, 2, 3 или название хода: ");
         }
     }
 
-    private static void displayChoices(Move move1, Move move2) {
+    private static void displayChoices(Game game, Move move1, Move move2) {
         clearConsole();
         System.out.println("=== ВЫБОР ИГРОКОВ ===");
         System.out.println(game.getPlayer1().getName() + " выбрал(а): " + move1.getDisplayName());
@@ -107,7 +151,7 @@ public class LocalRockPaperScissors {
         System.out.println("===================");
     }
 
-    private static void displayRoundResult(GameResult result) {
+    private static void displayRoundResult(Game game, GameResult result) {
         System.out.println("\nРЕЗУЛЬТАТ: " + result.getDescription());
         if (result == GameResult.PLAYER1_WINS) {
             System.out.println(game.getPlayer1().getName() + " выиграл(а) раунд!");
@@ -116,7 +160,7 @@ public class LocalRockPaperScissors {
         }
     }
 
-    private static void displayFinalResults() {
+    private static void displayFinalResults(Game game) {
         clearConsole();
         System.out.println("=== ФИНАЛЬНЫЕ РЕЗУЛЬТАТЫ ===");
         System.out.println("Игроки: " + game.getPlayer1().getName() + " vs " + game.getPlayer2().getName());
@@ -136,15 +180,11 @@ public class LocalRockPaperScissors {
         System.out.println("==========================");
     }
 
-    private static void askForReplay() {
+    private static boolean askForReplay() {
         System.out.print("\nХотите сыграть еще раз? (да/нет): ");
-        String response = scanner.nextLine().toLowerCase();
-        if (response.equals("да") || response.equals("д") || response.equals("yes") || response.equals("y")) {
-            setupGame();
-            playGame();
-        } else {
-            System.out.println("Спасибо за игру! До свидания!");
-        }
+        String response = scanner.nextLine().toLowerCase().trim();
+        return response.equals("да") || response.equals("д") ||
+                response.equals("yes") || response.equals("y");
     }
 
     private static void clearConsole() {
@@ -157,7 +197,7 @@ public class LocalRockPaperScissors {
                 System.out.flush();
             }
         } catch (Exception e) {
-            System.out.println("\n\n\n\n\n");
+            System.out.println("\n\n\n\n\n"); // Фоллбек для очистки
         }
     }
 }

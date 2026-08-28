@@ -11,7 +11,8 @@ import java.util.concurrent.Executors;
 
 public class GameServer {
     private static final int PORT = 8888;
-    private static final int MAX_THREADS = 10;
+    private static final int MAX_THREADS = 50;
+    private static final int CLIENT_TIMEOUT_MS = 300000; // 5 минут
     private static final List<GameRoom> gameRooms = new CopyOnWriteArrayList<>();
 
     public static void main(String[] args) {
@@ -23,12 +24,17 @@ public class GameServer {
 
         System.out.println("Сервер игры 'Камень, ножницы, бумага' запущен...");
         System.out.println("Порт: " + PORT);
+        System.out.println("Таймаут клиента: " + (CLIENT_TIMEOUT_MS / 1000) + " секунд");
 
         ExecutorService pool = Executors.newFixedThreadPool(MAX_THREADS);
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
+
+                // Устанавливаем timeout на сокет
+                clientSocket.setSoTimeout(CLIENT_TIMEOUT_MS);
+
                 System.out.println("Новый клиент подключен: " + clientSocket.getInetAddress());
 
                 ClientSession clientSession = new ClientSession(clientSocket, gameRooms);

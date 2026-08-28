@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.List;
 
 public class ClientSession implements Runnable {
@@ -54,6 +55,9 @@ public class ClientSession implements Runnable {
                         sendMessage("Неизвестная команда. Используйте: JOIN <имя>, MOVE <ход>, QUIT");
                 }
             }
+        } catch (SocketTimeoutException e) {
+            System.out.println("Таймаут клиента: " + (playerName != null ? playerName : "неизвестный"));
+            sendMessage("Соединение разорвано из-за неактивности");
         } catch (IOException e) {
             System.out.println("Игрок отключен: " + (playerName != null ? playerName : "неизвестный"));
         } finally {
@@ -115,7 +119,9 @@ public class ClientSession implements Runnable {
     }
 
     public void sendMessage(String message) {
-        out.println(message);
+        if (out != null) {
+            out.println(message);
+        }
     }
 
     public String getPlayerName() {
@@ -131,9 +137,6 @@ public class ClientSession implements Runnable {
 
         if (currentRoom != null) {
             currentRoom.removePlayer(this);
-            if (currentRoom.isEmpty()) {
-                GameServer.removeEmptyRoom(currentRoom);
-            }
         }
     }
 }

@@ -5,46 +5,50 @@ import domain.Move;
 import domain.Player;
 import domain.Round;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class GameRoom {
-    private final ClientSession[] players = new ClientSession[2];
-    private int playerCount = 0;
+    private final List<ClientSession> players = new ArrayList<>();
+    private final List<Player> domainPlayers = new ArrayList<>();
     private Round round;
-    private final Player[] domainPlayers = new Player[2];
 
     public synchronized void addPlayer(ClientSession player) {
-        if (playerCount >= 2) {
+        if (players.size() >= 2) {
             player.sendMessage("Комната заполнена!");
             return;
         }
 
-        players[playerCount] = player;
-        domainPlayers[playerCount] = new Player(player.getPlayerName());
-        playerCount++;
+        players.add(player);
+        domainPlayers.add(new Player(player.getPlayerName()));
 
-        if (playerCount == 1) {
+        if (players.size() == 1) {
             player.sendMessage("Ожидание второго игрока...");
-        } else if (playerCount == 2) {
-            round = new Round(domainPlayers[0], domainPlayers[1]);
+        } else if (players.size() == 2) {
+            round = new Round(domainPlayers.get(0), domainPlayers.get(1));
             broadcast("Оба игрока подключены! Игра начинается.");
-            broadcast("Игроки: " + domainPlayers[0].getName() + " vs " + domainPlayers[1].getName());
+            broadcast("Игроки: " + domainPlayers.get(0).getName() + " vs " + domainPlayers.get(1).getName());
             broadcast("Доступные ходы: КАМЕНЬ, НОЖНИЦЫ, БУМАГА (или 1, 2, 3)");
             broadcast("Сделайте ваш выбор: MOVE <ход>");
         }
     }
 
     public synchronized void removePlayer(ClientSession player) {
-        for (int i = 0; i < playerCount; i++) {
-            if (players[i] == player) {
-                players[i] = null;
-                playerCount--;
+        int index = players.indexOf(player);
+        if (index != -1) {
+            players.remove(index);
+            domainPlayers.remove(index);
 
-                broadcast(player.getPlayerName() + " покинул игру.");
+            broadcast(player.getPlayerName() + " покинул игру.");
 
-                if (playerCount < 2 && round != null) {
-                    broadcast("Игра прервана из-за выхода игрока.");
-                    round = null;
-                }
-                break;
+            if (players.size() < 2 && round != null) {
+                broadcast("Игра прервана из-за выхода игрока.");
+                round = null;
+            }
+
+            // Если комната пуста, помечаем для удаления
+            if (players.isEmpty()) {
+                GameServer.removeEmptyRoom(this);
             }
         }
     }
@@ -58,13 +62,13 @@ public class GameRoom {
         try {
             Move move = Move.fromString(moveStr);
 
-            int playerIndex = getPlayerIndex(player);
+            int playerIndex = players.indexOf(player);
             if (playerIndex == -1) {
                 player.sendMessage("Вы не участвуете в этой игре.");
                 return;
             }
 
-            Player domainPlayer = domainPlayers[playerIndex];
+            Player domainPlayer = domainPlayers.get(playerIndex);
 
             try {
                 round.makeMove(domainPlayer, move);
@@ -79,10 +83,10 @@ public class GameRoom {
                 GameResult result = round.play();
 
                 broadcast("\n=== РЕЗУЛЬТАТЫ РАУНДА ===");
-                broadcast(domainPlayers[0].getName() + ": " + round.getPlayer1Move().getDisplayName());
-                broadcast(domainPlayers[1].getName() + ": " + round.getPlayer2Move().getDisplayName());
+                broadcast(domainPlayers.get(0).getName() + ": " + round.getPlayer1Move().getDisplayName());
+                broadcast(domainPlayers.get(1).getName() + ": " + round.getPlayer2Move().getDisplayName());
                 broadcast("Результат: " + result.getDescription());
-                broadcast("Счёт: " + domainPlayers[0] + " - " + domainPlayers[1]);
+                broadcast("Счёт: " + domainPlayers.get(0) + " - " + domainPlayers.get(1));
                 broadcast("==========================\n");
 
                 round.reset();
@@ -95,28 +99,19 @@ public class GameRoom {
         }
     }
 
-    private int getPlayerIndex(ClientSession player) {
-        for (int i = 0; i < playerCount; i++) {
-            if (players[i] == player) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     private void broadcast(String message) {
-        for (int i = 0; i < playerCount; i++) {
-            if (players[i] != null) {
-                players[i].sendMessage(message);
+        for (ClientSession player : players) {
+            if (player != null) {
+                player.sendMessage(message);
             }
         }
     }
 
-    public boolean isFull() {
-        return playerCount >= 2;
+    public synchronized boolean isFull() {
+        return players.size() >= 2;
     }
 
     public synchronized boolean isEmpty() {
-        return playerCount == 0;
+        return players.isEmpty();
     }
 }
