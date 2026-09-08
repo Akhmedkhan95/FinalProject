@@ -1,5 +1,7 @@
 plugins {
     id 'java'
+    id 'application'
+    id 'jacoco'
 }
 
 group = 'ru-otus-java-oop1'
@@ -9,6 +11,10 @@ repositories {
     mavenCentral()
 }
 
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -16,4 +22,15 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+application {
+    mainClass = project.hasProperty('mainClass') ? project.property('mainClass') : 'LocalRockPaperScissors'
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
